@@ -8,49 +8,30 @@ import sqlite3
 import datetime
 import base64
 from io import BytesIO
+import gdown
+
 
 # Интерфейс
 st.set_page_config(page_title="Детекция строительной техники", layout="centered")
 st.title("🚧 Детекция строительной техники")
 
-import requests
-import os
-
-# Функция для скачивания файла с Google Drive
-def download_file_from_google_drive(file_id, destination):
-    URL = "https://drive.google.com/uc?id={}&export=download".format(file_id)
-    session = requests.Session()
-    response = session.get(URL, stream=True)
-    token = None
-
-    # Проверка на подтверждение большого файла
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            token = value
-            break
-
-    if token:
-        params = {'id': file_id, 'confirm': token}
-        response = session.get(URL, params=params, stream=True)
-
-    # Скачивание файла
-    CHUNK_SIZE = 32768
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:
-                f.write(chunk)
 
 # ID файлов из Google Drive ссылок
 MODEL_FILE_IDS = {
     "YOLOv11": "13dVgKfjX87HmKc1nwnQDqASOY0n0m-XQ",
-    "RT-DETR": "1-qPgDJHoR5iEiFuYbiWgZs7sOFMN0yrk"
+    "RT-DETR": "1-VzOp2pvlMbnSCB5kY7xwVYwNIPSNZpN"
 }
 
 # Локальные пути к файлам весов
 MODEL_PATHS = {
     "YOLOv11": "epoch60.pt",
-    "RT-DETR": "best-24.pt",
+    "RT-DETR": "best.pt",
 }
+
+# Функция скачивания файла с Google Drive через gdown
+def download_file_from_google_drive(file_id, destination):
+    url = f'https://drive.google.com/uc?id={file_id}'
+    gdown.download(url, destination, quiet=False)
 
 # Проверка и скачивание весов
 for model_name, file_id in MODEL_FILE_IDS.items():
@@ -58,6 +39,7 @@ for model_name, file_id in MODEL_FILE_IDS.items():
         print(f"Скачивание весов для модели {model_name}...")
         download_file_from_google_drive(file_id, MODEL_PATHS[model_name])
         print(f"✅ Веса для {model_name} скачаны!")
+
 
 @st.cache_resource
 def load_model(path: str, option: str):
