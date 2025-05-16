@@ -1,0 +1,1 @@
+# Detection_of_construction_equipment
