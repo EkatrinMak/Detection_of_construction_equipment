@@ -57,7 +57,7 @@ def show_detections(message):
             response += f"🔸 {det[1]} — {det[2]*100:.2f}% (ID записи: {det[0]})\n"
         
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("Вывести изображение детекции", callback_data=f"image|{selected_date}"))
+        markup.add(types.InlineKeyboardButton("Вывести изображения детекций", callback_data=f"image|{selected_date}"))
         markup.add(types.InlineKeyboardButton("Начать с начала", callback_data="restart"))
 
         bot.send_message(message.chat.id, response, reply_markup=markup)
@@ -81,21 +81,34 @@ def handle_callback(call):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
+        # Получаем все изображения за выбранную дату
         cursor.execute("""
             SELECT image_base64 FROM detections 
-            WHERE date(detection_datetime) = ?
+            WHERE date(detection_datetime) = ? AND image_base64 IS NOT NULL
         """, (selected_date,))
 
         images = cursor.fetchall()
         conn.close()
 
         if images:
+            # Используем множество для хранения уникальных изображений
+            unique_images = set()
+            
             for img_str in images:
                 if img_str[0]:  # Если изображение сохранено
-                    img_bytes = base64.b64decode(img_str[0])
+                    # Добавляем в множество (дубликаты будут автоматически удалены)
+                    unique_images.add(img_str[0])
+            
+            # Отправляем только уникальные изображения
+            for img_str in unique_images:
+                try:
+                    img_bytes = base64.b64decode(img_str)
                     bot.send_photo(call.message.chat.id, photo=BytesIO(img_bytes))
-                else:
-                    bot.send_message(call.message.chat.id, "Изображение не найдено для данной записи.")
+                except Exception as e:
+                    print(f"Ошибка при отправке изображения: {e}")
+                    continue
+            
+            bot.send_message(call.message.chat.id, f"Отправлено {len(unique_images)} уникальных изображений.")
         else:
             bot.send_message(call.message.chat.id, "Изображений за выбранную дату нет.")
         
